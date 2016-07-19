@@ -2,6 +2,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<winsock2.h>
+#define BUF_SIZE 1024
 
 void ErrorHandling(char* message);
 
@@ -12,11 +13,10 @@ int main(int argc, char* argv[])
 	SOCKET hSocket;
 	// 서버의 정보를 저장할 구조체 선언
 	SOCKADDR_IN servAddr;
-	int idx = 0;
+	// 문자열 길이를 담을 변수
+	int strLen;
 	// 서버에서 받은 정보를 담을 버퍼
-	char message[30];
-	int strLen = 0;
-	int readLen = 0;
+	char message[BUF_SIZE];
 	if (argc != 3) {
 		printf("Usage : %s <IP> <port>\n", argv[0]);
 		exit(1);
@@ -47,20 +47,25 @@ int main(int argc, char* argv[])
 	{
 		ErrorHandling("connect() error!");
 	}
-
-	//recv 함수를 통해 서버에서 보낸 메시지를 입력(수신)한다.
-	while (readLen = recv(hSocket, &message[idx++], 1, 0))
+	else
 	{
-		if (strLen == -1)
-		{
-			ErrorHandling("read() error!");
-		}
-		strLen += readLen;
+		puts("Connected............");
 	}
 
-	
-	printf("Message from server: %s \n", message);
-	printf("Function read call count: %d \n", strLen);
+	while (1)
+	{
+		fputs("Input message(Q to quit): ", stdout);
+		fgets(message, BUF_SIZE, stdin);
+
+		if (!strcmp(message, "q\n") || !strcmp(message, "Q\n"))
+			break;
+
+		send(hSocket, message, strlen(message), 0);
+		strLen = recv(hSocket, message, BUF_SIZE - 1, 0);
+		// 받은 문자열 마지막에 널문자 넣기 이를 위해서 바로위에서 1 빼준것
+		message[strLen] = 0;
+		printf("Message from server: %s", message);
+	}
 	closesocket(hSocket);
 	WSACleanup();
 	return 0;
