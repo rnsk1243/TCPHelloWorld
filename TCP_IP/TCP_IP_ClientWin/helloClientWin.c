@@ -2,7 +2,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<winsock2.h>
-#define BUF_SIZE 1024
+#define BUF_SIZE 8
 
 void ErrorHandling(char* message);
 
@@ -13,8 +13,12 @@ int main(int argc, char* argv[])
 	SOCKET hSocket;
 	// 서버의 정보를 저장할 구조체 선언
 	SOCKADDR_IN servAddr;
-	// 문자열 길이를 담을 변수
+	// 클라이언트가 보낸 문자열 바이트수를 담을 변수
 	int strLen;
+	// 서버로부터 받은 문자열 바이트수를 담을 변수
+	int recvLen;
+	//
+	int recvCnt;
 	// 서버에서 받은 정보를 담을 버퍼
 	char message[BUF_SIZE];
 	if (argc != 3) {
@@ -60,8 +64,23 @@ int main(int argc, char* argv[])
 		if (!strcmp(message, "q\n") || !strcmp(message, "Q\n"))
 			break;
 
-		send(hSocket, message, strlen(message), 0);
-		strLen = recv(hSocket, message, BUF_SIZE - 1, 0);
+		// 서버에게 문자를 보내고 그 보낸 바이트수 저장
+		strLen = send(hSocket, message, strlen(message), 0);
+		recvLen = 0;
+		while (recvLen < strLen)
+		{
+			// 서버에게 조금씩 문자 받기
+			recvCnt = recv(hSocket, &message[recvLen], BUF_SIZE - 1, 0);
+			printf("recvLen 인덱스 : %s", recvLen);
+			if (recvCnt == -1)
+			{
+				ErrorHandling("recv error!");
+			}
+			recvLen += recvCnt;
+		}
+
+		//send(hSocket, message, strlen(message), 0);
+		//strLen = recv(hSocket, message, BUF_SIZE - 1, 0);
 		// 받은 문자열 마지막에 널문자 넣기 이를 위해서 바로위에서 1 빼준것
 		message[strLen] = 0;
 		printf("Message from server: %s", message);
