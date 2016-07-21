@@ -1,9 +1,11 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<WinSock2.h>
+#define OPSZ 4
 #define BUF_SIZE 1024
 
 void ErrorHandling(char* message);
+int calculate(int opnum, int opnds[], char oprator);
 
 int main(int argc, char* argv[])
 {
@@ -12,13 +14,13 @@ int main(int argc, char* argv[])
 	SOCKET hServSock, hClntSock;
 	// 서버와 클라이언트의 주소,포트정보를 담을 구조체 선언
 	SOCKADDR_IN servAddr, clntAddr;
-
-	// 클라이언트 주소 길이를 담을 변수
+	// 클라이언트에게 받은 식
+	char opinfo[BUF_SIZE];
+	int result, opnd_cnt, i;
+	int recvCnt, recvLen;
 	int szClntAddr;
-	// 클라이언트에게 보낼 메시지를 담을 변수
-	char message[BUF_SIZE];
-	// 보낼 문자열의 길이
-	int strLen, i;
+	
+	int strLen;
 	
 	if (argc != 2)
 	{
@@ -63,42 +65,29 @@ int main(int argc, char* argv[])
 
 	for (i = 0; i < 5; i++)
 	{
-		//accept가 호출이 완료되면 클라이언트 주소길이 정보가 szClntAddr에 바이트 단위로 채워진다.
-		// 연결요청이 들어와 수락할 순서가 되면 클라이언트 주소정보를 저장할 구조체에 클라이언트 주소,포트번호를 저장, 크기도 저장
-		// 이때 accept함수 안에서 자동으로 새로운 소켓이 생성되고 크라이언트 소켓과 연결된다.(서버소켓은 문지기 일뿐!)
+		// 피연산자 갯수
+		opnd_cnt = 0;
 		hClntSock = accept(hServSock, (SOCKADDR*)&clntAddr, &szClntAddr);
-		if (hClntSock == INVALID_SOCKET)
+		// 클라에서 처번째로 넣었던 연산자 갯수 받기
+		recv(hClntSock, &opnd_cnt, 1, 0);
+		// 현재 클라에서 온 바이트 갯수 넣을 변수
+		recvLen = 0;
+		// 전체 바이트 갯수 > 현재 받은 바이트 이면 아직 더 받을게 남았으므로 true로 또 recv하기위해 while문 돈다.
+		// + 1 한 이유는 마지막에 넣은 연산자까지 포함 하려구
+		while ((opnd_cnt*OPSZ + 1) > recvLen)
 		{
-			ErrorHandling("accept() error");
+			// 배열 opinfo 0번 인덱스부터 클라에서 온 숫자들과 연산자 저장
+			// 피연산자 갯수만 따로 recv한 이유는 while문 조건에 쓰려구
+			// recvCnt는 현재 받은 바이트를 저장 하고 recvLen에 넣어 누적시킴 
+			// 이 누적시킨 값이 인덱스가 되어 다음 배열부터 opinfo에 누적 저장됨.
+			recvCnt = recv(hClntSock, &opinfo[recvLen], BUF_SIZE - 1, 0);
+			// 누적
+			recvLen += recvCnt;
 		}
-		else
-		{
-			printf("Connected client %d \n", i + 1);
-		}
-		// 클라이언트로부터 받아서 message에 값 저장 한번 호출 될때마다 BUF_SIZE만큼씩 받음
-		// 받은 문자열 크기를 strLen에 저장
-		/*
-		그런데 다음과 같이 recv와 send가 호출될 때마다 실제 입출력이 이루어 지는데 이는 문제가 있다.
-		TCP는 데이터의 경계가 존재하지 않기 때문에 만약 둘 이상의 send함수에 의해 전달된 문자열 정보가 묶여서 한번에
-		서버로 전송될 수 있다. 이렇게 되면 서버는 클라이언트에게 둘 이상의 문자열을 한번에 받아서 문제가 발생할 수 있다.
-		*/
-		// 연결된 클라이언트를 q를 통해 종료를 시키지 않으면(강제 종료하면) 서버는 클라이언트가 죽은지 몰라서
-		// while문속의 send함수를 무한 반복 호출함.
-		// 그리고 클라이언트 2개 만들고 처음 하나는 서버와 연결된 후에 나중에 하나는 대기큐에 있게 되는데
-		// 처음것을 강제 종료하면 while문을 빠져나오지 못하게 되고 이로인해 closesocket함수가 호출되지 않아
-		// 대기큐에 있던 클라이언트는 영원히 대기큐에 머물게 된다.
-		
-		// 서버와 클라이언트가 연결된 상태에서 클라이언트가 보내고 서버가 받아서 보내면 더이상 while문이 반복하지
-		// 않는다. 예상으로는 recv에서 받는게 없어서 정지 되나봄.
-		printf("-CC0-");
-		while ((strLen = recv(hClntSock, message, BUF_SIZE, 0)) != 0)
-		{
-			printf("CC");
-			// 클라이언트에게 보내기 strLen만큼
-			send(hClntSock, message, strLen, 0);
-		}
-		printf("CC2");
-		// accept호출로 인해 만들어진 소켓 닫기(서비스 종료)
+		// 결과 저장
+		result = calculate(opnd_cnt, (int*)opinfo, opinfo[recvLen - 1]);
+		// 결과 클라에게 보냄
+		send(hClntSock, (char*)&result, sizeof(result), 0);
 		closesocket(hClntSock);
 	}
 	
@@ -112,4 +101,27 @@ void ErrorHandling(char * message)
 	fputs(message, stderr);
 	fputc('\n', stderr);
 	exit(1);
+}
+
+int calculate(int opnum, int opnds[], char oprator)
+{
+	int result = opnds[0], i;
+	switch (oprator)
+	{
+	case '+':
+		for (i = 1; i < opnum; i++)
+			result += opnds[i];
+		break;
+	case '-':
+		for (i = 1; i < opnum; i++)
+			result -= opnds[i];
+		break;
+	case '*':
+		for (i = 1; i < opnum; i++)
+			result *= opnds[i];
+		break;
+	default:
+		break;
+	}
+	return result;
 }

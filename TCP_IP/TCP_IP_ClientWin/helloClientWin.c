@@ -1,8 +1,11 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 #include<stdio.h>
 #include<stdlib.h>
 #include<winsock2.h>
-#define BUF_SIZE 8
+#define BUF_SIZE 1024
+#define RLT_SIZE 4
+#define OPSZ 4
 
 void ErrorHandling(char* message);
 
@@ -13,14 +16,9 @@ int main(int argc, char* argv[])
 	SOCKET hSocket;
 	// 서버의 정보를 저장할 구조체 선언
 	SOCKADDR_IN servAddr;
-	// 클라이언트가 보낸 문자열 바이트수를 담을 변수
-	int strLen;
-	// 서버로부터 받은 문자열 바이트수를 담을 변수
-	int recvLen;
-	//
-	int recvCnt;
-	// 서버에서 받은 정보를 담을 버퍼
-	char message[BUF_SIZE];
+	char opmsg[BUF_SIZE];
+	int result, opnd_cnt, i;
+
 	if (argc != 3) {
 		printf("Usage : %s <IP> <port>\n", argv[0]);
 		exit(1);
@@ -56,35 +54,36 @@ int main(int argc, char* argv[])
 		puts("Connected............");
 	}
 
-	while (1)
+	// 콘솔 아웃(마치 cout과 같은 역할)
+	fputs("Operand count: ", stdout);
+	//c언어 입력받기 (입력받아 넣을 곳의 변수주소)
+	// 입력 받을 피연산자의 개수
+	scanf("%d", (char*)&opnd_cnt);
+	// char형으로 바꾸어 버퍼에 저장
+	opmsg[0] = (char)opnd_cnt;
+	// 피연산자 입력 받기
+	for (i = 0; i < opnd_cnt; i++)
 	{
-		fputs("Input message(Q to quit): ", stdout);
-		fgets(message, BUF_SIZE, stdin);
-
-		if (!strcmp(message, "q\n") || !strcmp(message, "Q\n"))
-			break;
-
-		// 서버에게 문자를 보내고 그 보낸 바이트수 저장
-		strLen = send(hSocket, message, strlen(message), 0);
-		recvLen = 0;
-		while (recvLen < strLen)
-		{
-			// 서버에게 조금씩 문자 받기
-			recvCnt = recv(hSocket, &message[recvLen], BUF_SIZE - 1, 0);
-			printf("recvLen 인덱스 : %s", recvLen);
-			if (recvCnt == -1)
-			{
-				ErrorHandling("recv error!");
-			}
-			recvLen += recvCnt;
-		}
-
-		//send(hSocket, message, strlen(message), 0);
-		//strLen = recv(hSocket, message, BUF_SIZE - 1, 0);
-		// 받은 문자열 마지막에 널문자 넣기 이를 위해서 바로위에서 1 빼준것
-		message[strLen] = 0;
-		printf("Message from server: %s", message);
+		printf("Operand %d: ", i + 1);
+		//OPSZ 만큼씩 뛰어서 저장 char 하나당 숫자 하나씩 저장하므로 OPSZ 자리수 만큼 저장하려면 
+		// OPSZ만큼 건너뚜ㅣ어 이어서 저장해야한다.
+		// 예 123 저장시 opmsg[0] = '1'; ... opmsg[2] = '3'; 이렇게 한다.
+		// 그뒤에 456 저장 opmsg[3] 부터 4를 저장한다.  
+		// 1을 더한건 위에서 피연산자의 개수 때문
+		scanf("%d", (int*)&(opmsg[i*OPSZ + 1]));
 	}
+	// 밑에서 scanf호출하면서 문자를 입력받는데 이미 버퍼에 남아있는 \n문자의 삭제를 위함
+	fgetc(stdin);// 문자열 읽는 함수
+	fputs("Operator: ", stdout);
+	// 연산자 입력받기 
+	scanf("%c", &opmsg[opnd_cnt*OPSZ + 1]);
+	// 입력받은 것을 서버에 보내기 + 2는 피연산자 갯수 숫자 1 그리고 연산자 1 해서 1+1 = 2이다. 
+	send(hSocket, opmsg, opnd_cnt*OPSZ + 2, 0);
+	// 서버에서 연산결과 받기
+	recv(hSocket, &result, RLT_SIZE, 0);
+
+	printf("Operation result: %d \n", result);
+
 	closesocket(hSocket);
 	WSACleanup();
 	return 0;
