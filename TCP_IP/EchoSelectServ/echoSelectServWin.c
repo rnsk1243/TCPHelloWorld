@@ -109,7 +109,6 @@ int main(int argc, char* argv[])
 							send(reads.fd_array[i], buf, strLen, 0);
 						}
 					}
-
 				}
 			}
 		}
