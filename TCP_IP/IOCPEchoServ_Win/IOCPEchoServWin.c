@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 	}
 	// OVERLAPPED용 소켓 생성
 	// 넌 블록킹 소켓은 아니다. 즉 연결요청이 없을때는 accept에서 블록킹 상태가 된다.
-	hServSock = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
+	hServSock = WSASocket(PF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
 	memset(&servAdr, 0, sizeof(servAdr));
 	servAdr.sin_family = AF_INET;
 	servAdr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -119,9 +119,10 @@ int main(int argc, char* argv[])
 		// LPPER_IO_DATA == &(ioInfo->overlapped)이것이 성립한다.
 		// 따라서 스레드내에서 LPPER_IO_DATA ioInfo라고 변수를 선언하고 함수인자로 (LPOVERLAPPED*)&ioInfo라고 해줌
 		// WSARecv이것이 호출돼야 스레드도GetQueuedCompletionStatus 함수에서 블록킹 당하지 않고 다음으로 넘어갈 수 있다.
-		puts("메인스레드 WSARecv 호출 한다");
+		//puts("메인스레드 WSARecv 호출 한다");
 		WSARecv(handleInfo->hClntSock, &(ioInfo->wsaBuf), 1, &recvBytes, &flags, &(ioInfo->overlapped), NULL);
-		puts("메인스레드 WSARecv 호출 했다");
+		//printf("recvBytes = %d \n", recvBytes);
+		//puts("메인스레드 WSARecv 호출 했다");
 	}
 	return 0;
 }
@@ -180,7 +181,7 @@ DWORD WINAPI EchoThreadMain(LPVOID CompletionPortIO)
 			// 데이터 보내기
 			// LPPER_IO_DATA구조체를 보면 WSABUF과 OVERLAPPED 모두 포인터 형태로 정의되어 있지 않으므로
 			// 주소를 넘기기 위해 &을 붙혀주었다.
-			WSASend(sock, &(ioInfo->wsaBuf), 1, NULL, &flags, &(ioInfo->overlapped), NULL);
+			WSASend(sock, &(ioInfo->wsaBuf), 1, NULL, 0, &(ioInfo->overlapped), NULL);
 
 			puts("수신할꺼야");
 			// 메시지 재전송 이후에 클라이언트가 전송하는 메시지를 수신해야한다.

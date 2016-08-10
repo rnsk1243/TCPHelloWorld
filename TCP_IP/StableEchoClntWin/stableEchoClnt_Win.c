@@ -56,12 +56,13 @@ int main(int argc, char* argv[])
 
 		while (1)
 		{
-			puts("瘤饿车焙");
+			//puts("瘤饿车焙");
 			readLen += recv(hSocket, &message[readLen], BUF_SIZE - 1, 0);
-			puts("构部");
+			//printf("message from : %s \n", message);
+			//puts("构部");
 			if (readLen >= strLen)
 			{
-				printf("readLen = %d \n", readLen);
+				//printf("readLen = %d \n", readLen);
 				break;
 			}
 		}
